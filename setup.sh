@@ -4,7 +4,7 @@
 DOCKER_IMAGE_NAME="ubuntu-custom"
 CONTAINER_NAME="ubuntu-custom-container"
 SSH_KEY_PATH="$HOME/.ssh/id_rsa.pub"
-REPO_URL="https://raw.githubusercontent.com/johnsmith/dev-container/main"
+REPO_URL="https://raw.githubusercontent.com/yoazmenda/dev-container/main"
 BASE_PORT=2222
 
 # Function to find an available port starting from BASE_PORT
