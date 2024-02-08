@@ -1,20 +1,18 @@
 # Use the official Ubuntu base image
 FROM ubuntu:latest
 
-# Avoid prompts during package installation
+# Use ARG for variable that won't be needed after build
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Update packages and install necessary software
-RUN apt-get update && \
-    apt-get upgrade -y && \
+# Update packages and install necessary software in one RUN to reduce layers
+RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y openssh-server git python3 openjdk-11-jdk curl mc vim ncdu sudo && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    mkdir /var/run/sshd
 
-# Set up SSH server
-RUN mkdir /var/run/sshd
-RUN echo 'PermitRootLogin no' >> /etc/ssh/sshd_config
-RUN echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config
-RUN echo 'ChallengeResponseAuthentication no' >> /etc/ssh/sshd_config
+# Configure SSH server
+RUN echo 'PermitRootLogin no\nPasswordAuthentication no\nChallengeResponseAuthentication no' > /etc/ssh/sshd_config
 
 # Create a non-root user with sudo access
 RUN useradd -m -s /bin/bash -G sudo user && \
@@ -25,7 +23,7 @@ RUN mkdir -p /home/user/.ssh && \
     chown user:user /home/user/.ssh && \
     chmod 700 /home/user/.ssh
 
-# Expose the SSH port
+# Expose the SSH port (will be overridden by runtime port mapping)
 EXPOSE 22
 
 CMD ["/usr/sbin/sshd", "-D"]
