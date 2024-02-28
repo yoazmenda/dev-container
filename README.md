@@ -7,5 +7,5 @@ Ubuntu docker in command
 - common tools installed: python, java, mc, vim and others
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/yoazmenda/dev-container/main/setup.sh | bash
+bash -c "$(curl -sSL https://raw.githubusercontent.com/yoazmenda/dev-container/main/setup.sh)"
 ```
