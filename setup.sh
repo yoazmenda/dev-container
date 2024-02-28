@@ -3,15 +3,9 @@
 # Define repository URL for downloading additional required files
 REPO_URL="https://raw.githubusercontent.com/yoazmenda/dev-container/main"
 
-# Prompt for ngrok auth token with silent input
-echo "Enter your Ngrok Auth Token (input will be hidden):"
-read -s NGROK_AUTH_TOKEN
-echo "Ngrok Auth Token received."
-
-# Prompt for SSH public key with silent input
-echo "Enter your SSH Public Key (input will be hidden):"
-read -s SSH_PUBLIC_KEY
-echo "SSH Public Key received."
+# Prompt for ngrok auth token and SSH public key
+read -p "Enter your Ngrok Auth Token: " NGROK_AUTH_TOKEN
+read -p "Enter your SSH Public Key: " SSH_PUBLIC_KEY
 
 # Download the Dockerfile and entrypoint.sh from the repository
 echo "Downloading Dockerfile and entrypoint.sh..."
