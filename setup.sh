@@ -1,56 +1,34 @@
 #!/bin/bash
 
-# Variables
-DOCKER_IMAGE_NAME="ubuntu-custom"
-CONTAINER_NAME="ubuntu-custom-container"
-SSH_KEY_PATH="$HOME/.ssh/id_rsa.pub"
-REPO_URL="https://raw.githubusercontent.com/yoazmenda/dev-container/main"
-BASE_PORT=2222
+# Prompt for ngrok auth token and SSH public key
+read -p "Enter your Ngrok Auth Token: " NGROK_AUTH_TOKEN
+read -p "Enter your SSH Public Key: " SSH_PUBLIC_KEY
 
-# Function to find an available port starting from BASE_PORT
-find_available_port() {
-    local port=$1
-    while : ; do
-        if ! lsof -i:$port &>/dev/null; then
-            echo $port
-            break
-        fi
-        ((port++))
-    done
-}
+# Build the Docker image
+docker build --build-arg NGROK_AUTH_TOKEN="$NGROK_AUTH_TOKEN" --build-arg SSH_PUBLIC_KEY="$SSH_PUBLIC_KEY" -t dev-image .
 
-# Automatically remove old host key from known_hosts
-update_known_hosts() {
-    local port=$1
-    ssh-keygen -f "${HOME}/.ssh/known_hosts" -R "[localhost]:$port" &>/dev/null
-}
+# Run the Docker container
+docker run -d -e NGROK_AUTH_TOKEN="$NGROK_AUTH_TOKEN" -e SSH_PUBLIC_KEY="$SSH_PUBLIC_KEY" --name dev-container dev-image
 
-# Check if SSH key exists, if not, suggest creating one
-if [ ! -f "$SSH_KEY_PATH" ]; then
-    echo "SSH key not found at $SSH_KEY_PATH."
-    echo "Consider running 'ssh-keygen -t rsa -b 4096' to create a new SSH key."
-    exit 1
+echo "Container started. Setting up ngrok and SSH..."
+
+# Wait for ngrok to initialize and fetch the URL
+echo "Fetching ngrok URL..."
+MAX_ATTEMPTS=5
+ATTEMPT_NUM=1
+while [ $ATTEMPT_NUM -le $MAX_ATTEMPTS ]; do
+    NGROK_URL=$(docker exec dev-container sh -c "grep -o 'tcp://[0-9a-z.]*:[0-9]*' /ngrok.log" | head -n 1)
+    if [ -z "$NGROK_URL" ]; then
+        echo "Ngrok URL not found, trying again in 5 seconds..."
+        sleep 5
+        let ATTEMPT_NUM=ATTEMPT_NUM+1
+    else
+        echo "Ngrok URL: $NGROK_URL"
+        break
+    fi
+done
+
+if [ -z "$NGROK_URL" ]; then
+    echo "Failed to retrieve ngrok URL after $MAX_ATTEMPTS attempts."
 fi
 
-# Fetch and build the Docker image from the remote Dockerfile
-echo "Fetching Dockerfile and building image..."
-curl -sSL "$REPO_URL/Dockerfile" | docker build -t $DOCKER_IMAGE_NAME -
-
-# Find an available port
-AVAILABLE_PORT=$(find_available_port $BASE_PORT)
-echo "Using available port: $AVAILABLE_PORT"
-
-# Update known_hosts to prevent SSH host key verification error
-update_known_hosts $AVAILABLE_PORT
-
-# Run the Docker container with SSH key mounted and found available port
-echo "Running the Docker container..."
-docker run -d -p $AVAILABLE_PORT:22 -v $SSH_KEY_PATH:/home/user/.ssh/authorized_keys:ro --name $CONTAINER_NAME $DOCKER_IMAGE_NAME
-
-echo "Container setup complete. Attempting to SSH into the container..."
-
-# Wait a moment to ensure the SSH service is up
-sleep 5
-
-# Attempt to SSH into the container
-ssh -o StrictHostKeyChecking=no -p $AVAILABLE_PORT user@localhost

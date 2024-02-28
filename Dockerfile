@@ -1,29 +1,27 @@
-# Use the official Ubuntu base image
 FROM ubuntu:latest
 
-# Use ARG for variable that won't be needed after build
-ARG DEBIAN_FRONTEND=noninteractive
+# Disable interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Update packages and install necessary software in one RUN to reduce layers
-RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y openssh-server git python3 openjdk-11-jdk curl mc vim ncdu sudo && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    mkdir /var/run/sshd
+# Install necessary packages
+RUN apt-get update && \
+    apt-get install -y python-is-python3 python3-venv python3-pip curl sudo wget htop ncdu mc vim git openssh-server
 
-# Configure SSH server
-RUN echo 'PermitRootLogin no\nPasswordAuthentication no\nChallengeResponseAuthentication no' > /etc/ssh/sshd_config
+# Setup SSH
+RUN mkdir /var/run/sshd && \
+    mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh && \
+    echo "PubkeyAuthentication yes\nPasswordAuthentication no\nChallengeResponseAuthentication no\nPermitRootLogin yes" >> /etc/ssh/sshd_config
 
-# Create a non-root user with sudo access
-RUN useradd -m -s /bin/bash -G sudo user && \
-    echo 'user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+# Install ngrok
+RUN curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && \
+    echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list && \
+    sudo apt update && sudo apt install -y ngrok
 
-# Setup directory for keys
-RUN mkdir -p /home/user/.ssh && \
-    chown user:user /home/user/.ssh && \
-    chmod 700 /home/user/.ssh
+EXPOSE 22 8080
 
-# Expose the SSH port (will be overridden by runtime port mapping)
-EXPOSE 22
+# Add entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-CMD ["/usr/sbin/sshd", "-D"]
+ENTRYPOINT ["/entrypoint.sh"]
